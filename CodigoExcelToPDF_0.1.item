@@ -1,0 +1,420 @@
+package routines;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+
+import com.grapecity.documents.excel.BorderLineStyle;
+import com.grapecity.documents.excel.Color;
+import com.grapecity.documents.excel.HorizontalAlignment;
+import com.grapecity.documents.excel.IRange;
+import com.grapecity.documents.excel.IWorksheet;
+import com.grapecity.documents.excel.PageOrientation;
+import com.grapecity.documents.excel.SaveFileFormat;
+import com.grapecity.documents.excel.VerticalAlignment;
+import com.grapecity.documents.excel.Workbook;
+import com.grapecity.documents.excel.drawing.AxisType;
+import com.grapecity.documents.excel.drawing.IAxis;
+import com.itextpdf.text.BaseColor;
+import com.itextpdf.text.DocumentException;
+import com.itextpdf.text.pdf.PdfReader;
+import com.itextpdf.text.pdf.PdfStamper;
+import com.itextpdf.text.pdf.pdfcleanup.PdfCleanUpLocation;
+import com.itextpdf.text.pdf.pdfcleanup.PdfCleanUpProcessor;
+
+/**
+ * Codigo usado para transformar un fichero de informes ".xlsx" a ".pdf" aplicando
+ * criterios de formato específicos a las plantillas del planificador de informes.
+ * 
+ * Nota: Este conversor NO es de uso general, solo para las plantillas planificador ya que
+ * están adaptadas para detectar tablas a partir de la fila 11 y aplicarles los respectivos
+ * formatos.
+ */
+public class CodigoExcelToPDF {
+	public static void rutinaExcelToPdf(String archivoExcelNombre, String archivoExcelRuta) throws IOException, DocumentException {
+
+		// Declaro las variables String de origen/destino que usaremos
+		String nombreHojaDeExcel = archivoExcelNombre; // rellenito.xlsx
+
+		String rutaHojaDeExcel = archivoExcelRuta + archivoExcelNombre;
+		
+		String rutaPDFDestinoConMarca = archivoExcelRuta + "SalidaPDF/"
+				+ nombreHojaDeExcel + "Con.pdf";
+		
+		String rutaPDFDestinoFinal = archivoExcelRuta + "SalidaPDF/"
+				+ nombreHojaDeExcel + ".pdf";
+		
+		// Creo nuevo workbook (Libreria Grapecity)
+		Workbook workbook = new Workbook();
+		// Abrimos en el workbook el Excel que queremos manipular
+		workbook.open(rutaHojaDeExcel);
+
+		// */*/*/*/ PROCESO DE Transformación /*/*/*/*/
+
+		// Selecciono una hoja concreta del workbook al que hemos vinculado el
+		// Excel
+		IWorksheet sheet = workbook.getWorksheets().get(0);
+
+		IRange rangoTabla = sheet.getRange("A12:"
+				+ rangoHastaUltColRellena(sheet, "A", 11).substring(0, 1)
+				+ rangoHastaUltLinRellena(sheet, "A", 11));
+
+		// COMIENZA PROCESO /////
+		System.out.println("\n*Directorio de trabajo = "
+				+ System.getProperty("user.dir") + "\n");
+		System.out.println("*INICIANDO TRANSFORMACIÓN a PDF");
+
+		// Establecer orientacion de la página.
+		sheet.getPageSetup().setOrientation(PageOrientation.Landscape);
+		// Establecer margenes para que quepa todo en una sola hoja y aproveche el top/bottom
+		sheet.getPageSetup().setLeftMargin(0);
+		sheet.getPageSetup().setRightMargin(0);
+		sheet.getPageSetup().setTopMargin(35);
+		sheet.getPageSetup().setBottomMargin(0);
+		// Cambiar escala del documento para que quepa
+		sheet.getPageSetup().setZoom(58); //[55 ACTUAL] 63 solo deja 1 mal y 49 las deja todas bien pero pequeñas
+		//Centrar hoja
+		sheet.getPageSetup().setCenterHorizontally(true);
+		//sheet.getPageSetup().setCenterVertically(true);
+		
+		
+		String celda = "";
+		
+				
+		/** Vamos a controlar algunos aspectos **/
+		
+		//Si celda == (A)DDI se ajustará el ancho de columna
+		celda = sheet.getRange("A11").getRows().get(0).getText();
+		System.out.println("*\n*\n*\n* A11=" + celda + "*\n*\n*\n*");
+				
+		if (celda.equals("DDI")){
+			//sheet.getRange("A11").setColumnWidth(13);
+			//rangoTabla.setRowHeight(36); /////
+			System.out.println("PASADO IF DDI");
+		}	
+				
+		/****************************/
+		//Si celda == (B)Extensión se ajustará el ancho de columna
+		celda = sheet.getRange("B11").getRows().get(0).getText();
+		System.out.println("*\n*\n*\n* B11=" + celda + "*\n*\n*\n*");
+					
+		if (celda.equals("Extensión")){
+			sheet.getRange("B11").setColumnWidth(16);
+			//rangoTabla.setRowHeight(36); /////
+			System.out.println("PASADO IF Extensión");
+		}	
+						
+		/****************************/
+		
+		//Si celda == (C)Fecha se ajustará el ancho de columna
+		celda = sheet.getRange("C11").getRows().get(0).getText();
+		System.out.println("*\n*\n*\n* C11=" + celda + "*\n*\n*\n*");
+						
+		if (celda.equals("Fecha")){
+			sheet.getRange("C11").setColumnWidth(10);
+			System.out.println("PASADO IF FECHA");
+		}	
+					
+		/****************************/
+		//Si celda == (D)Hora se ajustará el ancho de columna
+		celda = sheet.getRange("D11").getRows().get(0).getText();
+		System.out.println("*\n*\n*\n* D11=" + celda + "*\n*\n*\n*");
+						
+		if (celda.equals("Hora")){
+			sheet.getRange("D11").setColumnWidth(10);
+			System.out.println("PASADO IF HORA");
+		}	
+							
+		/****************************/
+		
+		// Si celda == (F)duracion (s) se ajustará el ancho de columna para que sea mas pequeño
+		celda = sheet.getRange("F11").getRows().get(0).getText();
+		System.out.println("*\n*\n*\n* F11=" + celda + "*\n*\n*\n*");
+		
+		if (celda.equals("Duración (s)")){
+			sheet.getRange("F11").setColumnWidth(8);
+			System.out.println("PASADO IF DURACION");
+		}
+		
+		/****************************/
+
+		// Si celda == (K)Destino Geográfico se ajustará el ancho de columna para que sea mas pequeño
+		celda = sheet.getRange("K11").getRows().get(0).getText();
+		System.out.println("*\n*\n*\n* K11=" + celda + "*\n*\n*\n*");
+		
+		if (celda.equals("Destino Geográfico")){
+			sheet.getRange("K11").setColumnWidth(14);
+			//rangoTabla.setRowHeight(36); /////
+			System.out.println("PASADO IF DESTINO GEOGRAFICO");
+		}	
+		
+		/****************************/
+		
+		// Si celda == (L)Detalle Destino Geográfico se ajustará el ancho de columna para que sea mas pequeño
+		celda = sheet.getRange("L11").getRows().get(0).getText();
+		System.out.println("*\n*\n*\n* L11=" + celda + "*\n*\n*\n*");
+		
+		if (celda.equals("Detalle Destino Geográfico")){
+			sheet.getRange("L11").setColumnWidth(13);
+			 /////
+			System.out.println("PASADO IF DETALLE DESTINO GEOGRAFICO");
+		}
+		
+		/****************************/
+				
+		//Si celda == (M)Coste se ajustará el ancho de columna para que sea mas pequeño
+		celda = sheet.getRange("M11").getRows().get(0).getText();
+		System.out.println("*\n*\n*\n* M11=" + celda + "*\n*\n*\n*");
+		
+		if (celda.equals("Coste")){
+			sheet.getRange("M11").setColumnWidth(8);
+		}
+		
+		/****************************/
+		
+		//Si celda == (N)Tiempo Espera (s) se ajustará el ancho de columna para que sea mas pequeño
+		celda = sheet.getRange("N11").getRows().get(0).getText();
+		System.out.println("*\n*\n*\n* N11=" + celda + "*\n*\n*\n*");
+		
+		if (celda.equals("Tiempo Espera (s)")){
+			sheet.getRange("N11").setColumnWidth(8);
+		}
+		
+		/****************************/
+	
+		//Si celda == (P)Número Marcado se ajustará el ancho de columna para que sea mas pequeño
+		celda = sheet.getRange("P11").getRows().get(0).getText();
+		System.out.println("*\n*\n*\n* P11=" + celda + "*\n*\n*\n*");
+		
+		if (celda.equals("Número Marcado")){
+			sheet.getRange("P11").setColumnWidth(19);
+		}
+		
+		/****************************/
+		/****************************/
+		
+		
+		// Alinear todo en a la izquierda y encabezado al centro
+		sheet.getRange("A:Z").setHorizontalAlignment(HorizontalAlignment.Left);
+		sheet.getRange("A11:Z11").setHorizontalAlignment(HorizontalAlignment.Center);
+		// Encoger tamaño de texto (si es necesario) para ajustar a columna
+		//sheet.getRange("A:Z").setShrinkToFit(false);
+
+		// Mostrar numero de página abajo a la derecha
+		sheet.getPageSetup().setRightFooter("&P");
+		sheet.getPageSetup().setFirstPageNumber(1);
+
+		// Mostrar líneas rejilla dentro de la tabla
+		rangoTabla.getBorders().setLineStyle(BorderLineStyle.Thin);
+		rangoTabla.getBorders().setColor(Color.GetBlack());
+		
+		// IMPORTANTE ALTO DE LAS FILAS A PARTIR DEL INICIO DE LA TABLA
+		rangoTabla.setRowHeight(25);
+		// IMPORTANTE Ajustar texto (Wrap Text) (PARA QUE OCUPE DOS LINEAS)
+		rangoTabla.setWrapText(true);
+
+		// sheet.getRows().get(11).setRowHeight(30);
+
+		// Centrar verticalmente todas las celdas
+		rangoTabla.setVerticalAlignment(VerticalAlignment.Center);
+
+		// ShrinkToFit
+		// rangoTabla.setShrinkToFit(true);
+
+		// Metodo para transformar en pdf
+		File archivoTemporal = new File(rutaPDFDestinoConMarca);
+		archivoTemporal.getParentFile().mkdirs(); 
+		archivoTemporal.createNewFile();
+		
+		workbook.save(rutaPDFDestinoConMarca, SaveFileFormat.Pdf);
+
+		System.out.println("**Transformado a PDF\n");
+
+		// */*/*/*/ QUITAR MARCAS SUPERIORES CON MÉTODO manipulatePDF()
+		// /*/*/*/*/
+		System.out.println("*Quitando marcas");
+		manipulatePDF(rutaPDFDestinoConMarca, rutaPDFDestinoFinal);
+		System.out.println("**Marcas quitadas correctamente\n");
+
+		// Eliminando fichero temporal con marcas
+		if (new File(rutaPDFDestinoConMarca).delete()) {
+			System.out
+					.println("*El fichero temporal ha sido borrado satisfactoriamente\n");
+		} else {
+			System.out.println("*El fichero temporal no pudó ser borrado\n");
+		}
+
+		System.out
+				.println("*Finalizado satisfactoriamente*\n**EXPORTACIÓN GUARDADA EN:\n  "						
+						+ rutaPDFDestinoFinal + "\n");
+
+		// Probando metodos
+		System.out.println("*LINEA FINAL: "
+				+ rangoHastaUltLinRellena(sheet, "A", 12));
+		System.out.println("*COLUMNA FINAL: "
+				+ rangoHastaUltColRellena(sheet, "A", 11));
+
+		
+		
+		
+		
+		
+	} // MAIN
+
+	
+	
+	
+	
+	
+	
+	// //////////////////////////////////////////////////////////////////////////////////////////////////
+
+	/**
+	 * manipulatePDF: Coloca en cada página del documento PDF un rectángulo de
+	 * color para ocultar cierto texto del header del documento pdf.
+	 *
+	 * @param src
+	 *            an absolute URL giving the base location of the PDF
+	 * @param dest
+	 *            an absolute URL giving the destination location of the PDF
+	 * @return Result PDF File
+	 */
+	public static void manipulatePDF(String src, String dest)
+			throws IOException, DocumentException {
+
+		// Declaro las variables iText's y ArrayList y Rectangle que usaremos
+		PdfReader reader = new PdfReader(src);
+		PdfStamper stamper = new PdfStamper(reader, new FileOutputStream(dest));
+		ArrayList<PdfCleanUpLocation> cleanUpLocations = new ArrayList<PdfCleanUpLocation>();
+
+		// Tamaño de los Rectangles
+		com.itextpdf.text.Rectangle rectangleParaApaisados = new com.itextpdf.text.Rectangle(
+				30f, 580f, 820f, 565f);
+		com.itextpdf.text.Rectangle rectangleParaVertical = new com.itextpdf.text.Rectangle(
+				150f, 820f, 480f, 840f);
+
+		// Usar el rectángulo en todas las páginas del PDF,
+		// para ello recorro todas las páginas en un bucle
+		for (int i = 1; i <= reader.getNumberOfPages(); i++) {
+			// Y aquí añado el Rectangle en cada iteración/hoja junto con su
+			// color
+			cleanUpLocations.add(new PdfCleanUpLocation(i,
+					rectangleParaApaisados, BaseColor.WHITE));
+		} // FIN for
+
+		// Confirmo todos los ajustes y los aplico
+		PdfCleanUpProcessor cleaner = new PdfCleanUpProcessor(cleanUpLocations,
+				stamper);
+		cleaner.cleanUp();
+
+		// Cierro el documento y el reader
+		stamper.close();
+		reader.close();
+
+	} // FIN manipulatePDF()
+
+	// //////////////////////////////////////////////////////////////////////////////////////////////////
+
+	/**
+	 * rangoHastaUltLinRellena: Devuelve en String el rango de la última línea
+	 * con contenido a partir de la línea especificada en metodo.
+	 * 
+	 * @param sheet
+	 *            Hoja de calculo
+	 * @param letraColumna
+	 *            Letra de la columna desde donde queremos averiguar la primera
+	 *            fila vacia
+	 * @param lineaInicio
+	 *            Numero de linea desde la que partir
+	 * 
+	 * @return Last empty row starting from the number of row and letter
+	 *         specified in method
+	 * @return 0 (Letter+0) if the content of row you choose is empty
+	 */
+	public static String rangoHastaUltLinRellena(IWorksheet sheet,
+			String letraColumna, int lineaInicio) {
+
+		// Selecciono una hoja concreta del workbook al que hemos vinculado el
+		// Excel
+		IWorksheet sheetMetodo = sheet;
+
+		String rango = letraColumna.toUpperCase();
+		int contador = 0;
+		boolean vacio = false;
+		int lineaMetodo = 0;
+		for (lineaMetodo = lineaInicio; vacio != true; lineaMetodo++) {
+			if (sheetMetodo.getRange(rango + lineaMetodo).getText().isEmpty()) {
+				// System.out.println("Contenido: VACIO");
+				vacio = true;
+			} else {
+				// System.out.println("Contenido:" + sheetMetodo.getRange(rango
+				// + lineaMetodo).getText());
+				contador++;
+			}
+		}
+		lineaMetodo = lineaMetodo - 2;
+
+		// System.out.println("\n\n*TOTAL DE FILAS RELLENAS A PARTIR DE LA 12: \n"
+		// + contador + "\n*Rango=" + rango + j);
+		if (lineaMetodo < lineaInicio) {
+			rango = "El contenido de la celda que has elegido está VACIA";
+		} else {
+			rango = Integer.toString(lineaMetodo); // si queremos letra+numero
+													// seria rango+lineaMetodo
+		}
+
+		return rango;
+	} // FIN rangoHastaUltLinRellena()
+
+	// //////////////////////////////////////////////////////////////////////////////////////////////////
+
+	/**
+	 * rangoHastaUltColRellena: Devuelve en String la letra de la última columna
+	 * con contenido a partir de la columna especificada en metodo.
+	 * 
+	 * @param sheet
+	 *            Hoja de calculo
+	 * @param letraColumna
+	 *            Letra de la columna desde donde queremos averiguar la columna
+	 *            vacia hacia la derecha
+	 * @param lineaInicio
+	 *            Numero de linea donde se encuentra la columna
+	 * 
+	 * @return Last empty column starting from the number of row and letter
+	 *         specified in method
+	 * @return 0 (Letter+0) if the content of row you choose is empty
+	 */
+	public static String rangoHastaUltColRellena(IWorksheet sheet,
+			String letraColumna, int lineaInicio) {
+
+		ArrayList<String> abcdario = new ArrayList<String>(
+				Arrays.asList("A", "B", "C", "D", "E", "F", "G", "H", "I", "J",
+						"K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U",
+						"V", "W", "X", "Y", "Z"));
+
+		IWorksheet sheetMetodo = sheet;
+
+		int i = 0;
+
+		// Buscamos el puntero necesario de la lista recorriendola y comparando
+		while (!letraColumna.equals(abcdario.get(i))) {
+			i++;
+		}
+		// System.out.println("INICIO ARRAYLIST: " + abcdario.get(i));
+
+		while (!sheetMetodo.getRange(abcdario.get(i) + lineaInicio).getText()
+				.isEmpty()) {
+			i++;
+		}
+
+		i--;
+
+		String rangoCalculado = abcdario.get(i) + lineaInicio;
+
+		return rangoCalculado;
+
+	} // FIN rangoHastaUltLinRellena()
+
+} // FIN App.java
